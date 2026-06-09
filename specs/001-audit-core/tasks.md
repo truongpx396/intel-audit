@@ -12,7 +12,7 @@ description: "Task list for AISAT-STUDIO MVP (Phase 1) implementation"
 
 ### Python tier chokepoints (LLM gateway, MCP server, access filter)
 
-- [ ] T026 Implement LLM gateway single chokepoint (`LLMRequest`/`LLMResponse`, alias resolution `fast`/`smart`/`embed`/`rerank`, idempotency, budget check, semantic cache, PII scrub, trace + `llm_call_log` write) in `backend-python/src/services/llm_gateway.py` (FR-024, FR-029, SC-006)
+- [ ] T026 Implement LLM gateway single chokepoint (`LLMRequest`/`LLMResponse`, alias resolution `fast`/`smart`/`embed`/`rerank`, idempotency, budget check, semantic cache, PII scrub via the shared `pii_scrub.py` of T123, trace + `llm_call_log` write) in `backend-python/src/services/llm_gateway.py` (FR-024, FR-029, SC-006)
 
 ### Implementation for User Story 4
 
@@ -35,7 +35,7 @@ description: "Task list for AISAT-STUDIO MVP (Phase 1) implementation"
 
 ## Phase 10: Polish & Cross-Cutting Concerns
 
-- [ ] T123 [P] Implement PII scrubbing before any trace/eval write + 30-day raw-body retention via partition `DROP` job in `backend-python/src/services/pii_scrub.py` and `backend-go/migrations/0015_retention_jobs.sql` (FR-024, Clarification Q5)
+- [ ] T123 [P] Implement the canonical PII scrubber in `backend-python/src/services/pii_scrub.py` (single implementation; the LLM gateway T026 is its only caller, covering both primary and one-hop-fallback calls) applied before any trace/eval write + 30-day raw-body retention via partition `DROP` job in `backend-go/migrations/0015_retention_jobs.sql` (FR-024, Clarification Q5)
 - [ ] T124 [P] Implement generic `audit_log` writer (tamper-evident fingerprint) for workspace/member actions in `backend-go/kernel/audit/audit.go` (FR-023)
 
 ### Incremental Delivery
