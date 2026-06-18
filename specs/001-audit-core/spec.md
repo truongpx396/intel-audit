@@ -11,6 +11,7 @@
 - **FR-023**: System MUST record an audit trail of AI tool calls (tool, role, cost, result fingerprint, trace reference) and of workspace/member actions.
 - **FR-024**: System MUST scrub personally identifiable information from prompts/responses before they are written to trace or evaluation stores, and MUST retain full prompt/response bodies only for a 30-day window, after which raw bodies are purged and only metadata, hashes, and aggregates are kept long-term.
 - **FR-026**: System MUST, by default, route a local agent's AI calls through the server so usage is metered, budgeted, and audited; a bring-your-own-key mode MAY bypass server metering for AI tokens but MUST still route workspace tool calls through the server, and admins MUST be able to disable this mode per workspace.
+- **FR-037**: System MUST allow a workspace admin to send a broadcast announcement to all current members of that workspace, subject to each member's per-channel preferences, and MUST record the broadcast in the audit trail.
 
 ### Key Entities *(include if feature involves data)*
 

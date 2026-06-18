@@ -8,7 +8,7 @@ description: "Task list for AISAT-STUDIO MVP (Phase 1) implementation"
 
 ### Database schema, RLS & shared layer
 
-- [ ] T019 Create kernel tables migration in `backend-go/migrations/0002_kernel.sql`: `users`, `workspaces`, `workspace_members`, `invites`, `audit_log`, `api_keys`, `plans`, `subscriptions`, `notifications`, `feature_flags`
+- [ ] T019 Create kernel tables migration in `backend-go/migrations/0002_kernel.sql`: `users`, `workspaces`, `workspace_members`, `invites`, `audit_log`, `api_keys`, `plans`, `subscriptions`, `notifications` (recipient `user_id`, `category`, `priority`, `title`, `body`, `payload` JSONB, `read_at`, index `(user_id, read_at, created_at)`), `notification_preferences` (`user_id`, `workspace_id`, `category`, `in_app`, `email`, `UNIQUE(user_id, workspace_id, category)`), `feature_flags`
 
 ### Python tier chokepoints (LLM gateway, MCP server, access filter)
 
@@ -33,7 +33,7 @@ description: "Task list for AISAT-STUDIO MVP (Phase 1) implementation"
 - [ ] T113 [US7] Create `devices`, `agent_policies`, `agent_audit_log`, `agent_run` migrations (partitioned where noted; `agent_run` checkpoint `state` JSONB, `credits_cap`/`credits_spent`) in `backend-go/migrations/0014_agents.sql` (FR-025–FR-028)
 - [ ] T118 [P] [US7] Implement policy repository + `agent_audit_log` writer (`tool_called`, `token_cost`, `result_hash`, `trace_id`) in `backend-go/internal/policy/infra/repo/policy_repo.go` (FR-023)
 
-## Phase 10: Polish & Cross-Cutting Concerns
+## Phase 11: Polish & Cross-Cutting Concerns
 
 - [ ] T123 [P] Implement the canonical PII scrubber in `backend-python/src/services/pii_scrub.py` (single implementation; the LLM gateway T026 is its only caller, covering both primary and one-hop-fallback calls) applied before any trace/eval write + 30-day raw-body retention via partition `DROP` job in `backend-go/migrations/0015_retention_jobs.sql` (FR-024, Clarification Q5)
 - [ ] T124 [P] Implement generic `audit_log` writer (tamper-evident fingerprint) for workspace/member actions in `backend-go/kernel/audit/audit.go` (FR-023)

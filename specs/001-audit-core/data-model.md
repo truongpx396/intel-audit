@@ -40,6 +40,8 @@ erDiagram
     WORKSPACE ||--o{ EMPLOYEE : "scopes"
     WORKSPACE ||--o{ PROJECT : "scopes"
     PROJECT ||--o{ METRIC : "measures"
+    USER ||--o{ NOTIFICATION : "receives"
+    WORKSPACE ||--o{ NOTIFICATION : "scopes"
 ```
 
 ## Validation & invariants (test targets)
