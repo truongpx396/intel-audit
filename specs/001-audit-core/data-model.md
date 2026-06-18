@@ -20,6 +20,10 @@
 - `audit_log` (K): generic workspace/member actions — `id`, `workspace_id`, `actor_type`, `actor_id`, `action`, `resource_type`, `resource_id`, `metadata` JSONB, `created_at`. Partitioned by `created_at`.
 - Rules: append-only; AI tool calls and workspace/member actions both audited (FR-023).
 
+### Billing & payments (Phase 2, US4-ext)
+
+- `payment_events` (K) — verified provider webhook dedup + audit (`UNIQUE (provider, provider_event_id)`, AP4).
+
 ## Relationships (high level)
 
 ```mermaid

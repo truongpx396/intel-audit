@@ -22,7 +22,7 @@ description: "Task list for AISAT-STUDIO MVP (Phase 1) implementation"
 
 - [ ] T105 [US6] Create `llm_call_log` table + `llm_cost_daily` materialized view migration in `backend-go/migrations/0013_llm_usage.sql` (FR-022, FR-024)
 
-## Phase 9: User Story 7 - Long-horizon tasks via a local agent (Priority: P3)
+## Stage 9: User Story 7 - Long-horizon tasks via a local agent (Priority: P3)
 
 **Goal**: An optional local agent runs multi-step tasks using workspace-scoped tools, routing AI calls through the server by default (metered/audited); long tasks are durable, cancellable, and bounded by a per-task cost cap. All core features work with zero agents.
 
@@ -33,7 +33,7 @@ description: "Task list for AISAT-STUDIO MVP (Phase 1) implementation"
 - [ ] T113 [US7] Create `devices`, `agent_policies`, `agent_audit_log`, `agent_run` migrations (partitioned where noted; `agent_run` checkpoint `state` JSONB, `credits_cap`/`credits_spent`) in `backend-go/migrations/0014_agents.sql` (FR-025–FR-028)
 - [ ] T118 [P] [US7] Implement policy repository + `agent_audit_log` writer (`tool_called`, `token_cost`, `result_hash`, `trace_id`) in `backend-go/internal/policy/infra/repo/policy_repo.go` (FR-023)
 
-## Phase 11: Polish & Cross-Cutting Concerns
+## Stage 11: Polish & Cross-Cutting Concerns
 
 - [ ] T123 [P] Implement the canonical PII scrubber in `backend-python/src/services/pii_scrub.py` (single implementation; the LLM gateway T026 is its only caller, covering both primary and one-hop-fallback calls) applied before any trace/eval write + 30-day raw-body retention via partition `DROP` job in `backend-go/migrations/0015_retention_jobs.sql` (FR-024, Clarification Q5)
 - [ ] T124 [P] Implement generic `audit_log` writer (tamper-evident fingerprint) for workspace/member actions in `backend-go/kernel/audit/audit.go` (FR-023)
