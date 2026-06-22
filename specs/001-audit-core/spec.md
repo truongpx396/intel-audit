@@ -8,6 +8,7 @@
 
 ### Functional Requirements
 
+- **FR-001**: System MUST allow authenticated members to ingest PDF, DOCX, markdown/plain-text, and image files, and to create notes. A note carries user-authored body text and optional attached web links. On explicit request (**Enrich**, re-runnable), the system MUST crawl the attached links, distill each page aligned to the note's intent, and present a draft suggestion the member reviews; only the member-accepted note body is indexed, with the crawled sources retained as citation metadata (not separately embedded). Pasting a bare URL with no body MUST create a note whose draft body is the page summary, subject to the same accept gate.
 - **FR-023**: System MUST record an audit trail of AI tool calls (tool, role, cost, result fingerprint, trace reference) and of workspace/member actions.
 - **FR-024**: System MUST scrub personally identifiable information from prompts/responses before they are written to trace or evaluation stores, and MUST retain full prompt/response bodies only for a 30-day window, after which raw bodies are purged and only metadata, hashes, and aggregates are kept long-term.
 - **FR-026**: System MUST, by default, route a local agent's AI calls through the server so usage is metered, budgeted, and audited; a bring-your-own-key mode MAY bypass server metering for AI tokens but MUST still route workspace tool calls through the server, and admins MUST be able to disable this mode per workspace.
