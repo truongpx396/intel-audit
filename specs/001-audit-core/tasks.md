@@ -20,7 +20,7 @@ description: "Task list for AISAT-STUDIO MVP (Phase 1) implementation"
 
 ### Implementation for User Story 6
 
-- [ ] T105 [US6] Create `llm_call_log` table + `llm_cost_daily` materialized view migration in `backend-go/migrations/0013_llm_usage.sql` (FR-022, FR-024)
+- [ ] T105 [US6] Create `llm_call_log` table + `llm_cost_daily` materialized view migration (add the UNIQUE index required for `REFRESH MATERIALIZED VIEW CONCURRENTLY`; refreshed single-owner in `cmd/worker` via the `usage.matview.refresh` tick, research §15) in `backend-go/migrations/0013_llm_usage.sql` (FR-022, FR-024)
 
 ## Stage 9: User Story 7 - Long-horizon tasks via a local agent (Priority: P3)
 
