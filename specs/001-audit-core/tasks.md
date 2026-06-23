@@ -8,7 +8,7 @@ description: "Task list for AISAT-STUDIO MVP (Phase 1) implementation"
 
 ### Database schema, RLS & shared layer
 
-- [ ] T019 Create kernel tables migration in `backend-go/migrations/0002_kernel.sql`: `users`, `workspaces`, `workspace_members`, `invites`, `audit_log`, `api_keys`, `plans`, `subscriptions`, `notifications` (recipient `user_id`, `category`, `priority`, `title`, `body`, `payload` JSONB, `read_at`, index `(user_id, read_at, created_at)`), `notification_preferences` (`user_id`, `workspace_id`, `category`, `in_app`, `email`, `UNIQUE(user_id, workspace_id, category)`), `feature_flags`
+- [ ] T019 Create kernel tables migration in `backend-go/migrations/0002_kernel.sql`: `users`, `workspaces`, `workspace_members`, `invites`, `audit_log`, `api_keys`, `plans`, `subscriptions`, `notifications` (recipient `user_id`, `category`, `priority`, `title`, `body`, `payload` JSONB, `idem_key`, `read_at`, `created_at`, index `(user_id, read_at, created_at)`, `UNIQUE(user_id, idem_key)`), `notification_preferences` (`user_id`, `workspace_id`, `category`, `in_app`, `email`, `UNIQUE(user_id, workspace_id, category)`), `email_suppressions` (`email` citext `UNIQUE`, `reason`, `created_at`), `feature_flags`
 
 ### Python tier chokepoints (LLM gateway, MCP server, access filter)
 
@@ -32,6 +32,15 @@ description: "Task list for AISAT-STUDIO MVP (Phase 1) implementation"
 
 - [ ] T113 [US7] Create `devices`, `agent_policies`, `agent_audit_log`, `agent_run` migrations (partitioned where noted; `agent_run` checkpoint `state` JSONB, `credits_cap`/`credits_spent`) in `backend-go/migrations/0014_agents.sql` (FR-025–FR-028)
 - [ ] T118 [P] [US7] Implement policy repository + `agent_audit_log` writer (`tool_called`, `token_cost`, `result_hash`, `trace_id`) in `backend-go/internal/policy/infra/repo/policy_repo.go` (FR-023)
+
+### Tests for User Story 8 ⚠️ (write first, must fail)
+
+- [ ] T132d [P] [US8] Contract/integration test for async broadcast — `POST /admin/notifications/broadcast` returns promptly, fans out per-recipient off the request path, and is audited in `backend-go/tests/integration/notification_broadcast_test.go` (FR-037)
+
+### Implementation for User Story 8
+
+- [ ] T140 [US8] Implement async admin-broadcast fan-out — enqueue one job from `POST /admin/notifications/broadcast` that publishes per-recipient `notify.<ws>` events off the request path, audited in `backend-go/internal/notification/service/broadcast.go` (FR-037)
+- [ ] T142 [P] [US8] Implement notification retention job (prune/archive read notifications older than the configured window, default 90d; optional range-partition drop on `created_at`), triggered via the scheduler seam (`notify.retention.tick`) in `backend-go/internal/notification/service/retention.go` and wired in `cmd/worker` (FR-039)
 
 ## Stage 11: Polish & Cross-Cutting Concerns
 
