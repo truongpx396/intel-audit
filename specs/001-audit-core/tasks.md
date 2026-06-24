@@ -8,7 +8,7 @@ description: "Task list for AISAT-STUDIO MVP (Phase 1) implementation"
 
 ### Database schema, RLS & shared layer
 
-- [ ] T019 Create kernel tables migration in `backend-go/migrations/0002_kernel.sql`: `users`, `workspaces`, `workspace_members`, `invites`, `audit_log`, `api_keys`, `plans`, `subscriptions`, `notifications` (recipient `user_id`, `category`, `priority`, `title`, `body`, `payload` JSONB, `idem_key`, `read_at`, `created_at`, index `(user_id, read_at, created_at)`, `UNIQUE(user_id, idem_key)`), `notification_preferences` (`user_id`, `workspace_id`, `category`, `in_app`, `email`, `UNIQUE(user_id, workspace_id, category)`), `email_suppressions` (`email` citext `UNIQUE`, `reason`, `created_at`), `feature_flags`
+- [ ] T019 Create kernel tables migration in `backend-go/migrations/0002_kernel.sql`: `users`, `workspaces`, `workspace_members`, `invites`, `audit_log`, `api_keys`, `plans`, `subscriptions`, `notifications` (recipient `user_id`, `category`, `priority`, `title`, `body`, `payload` JSONB, `idem_key`, `read_at`, `created_at`, index `(user_id, read_at, created_at)`, `UNIQUE(user_id, idem_key)`), `notification_preferences` (`user_id`, `workspace_id`, `category`, `in_app`, `email`, `UNIQUE(user_id, workspace_id, category)`), `email_suppressions` (`email` citext `UNIQUE`, `reason`, `created_at`), `dead_letters` (terminal poison-message store: `workspace_id`, `source_subject`, `dlq_subject`, `payload` JSONB, `dlq_attempts`, `last_error`, `first_failed_at`, `dead_at`), `feature_flags`
 
 ### Python tier chokepoints (LLM gateway, MCP server, access filter)
 
