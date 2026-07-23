@@ -25,3 +25,7 @@
 ## Assumptions
 
 - **Retention**: Raw prompt/response bodies are retained for a 30-day window for replay; after 30 days they are purged and long-term storage keeps metadata, hashes, and aggregates, with PII scrubbed before write.
+
+## Out of Scope (Phase 1)
+
+- Agents as independent principals (own clearance/groups bounded by their owner), agent write scope, and resource-level (`operation` + `resource_id`) audit rows — **Phase 2**; see [draft-plan.md — Agent Access & Accountability](../draft-plan.md#phase-2--agent-access--accountability). Phase 1 agents act with their registering member's access and every MCP tool is read-only (FR-012).
