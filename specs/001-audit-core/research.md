@@ -28,7 +28,7 @@
 
 ## 21. LLM gateway: standalone, swappable service (LiteLLM → Bifrost), not a hand-rolled provider chokepoint
 
-- **PII scrub** wraps the gateway's trace emission — the gateway must not ship raw bodies with PII to Langfuse/eval stores (FR-024).
+- **PII scrub** wraps the gateway's trace emission — the gateway's own tracer/body-logging is **off**, so the app client wrapper is the sole writer of prompt/response bodies (post-scrub) and the FR-024 scrub + 30-day-retention path cannot be bypassed.
 
 ## Resolved unknowns summary
 
