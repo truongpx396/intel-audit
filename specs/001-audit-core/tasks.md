@@ -14,6 +14,10 @@ description: "Task list for AISAT-INTEL MVP (Phase 1) implementation"
 
 - [ ] T026 Implement the LLM **gateway-client** wrapper (`LLMRequest`/`LLMResponse`; forwards to the standalone gateway `:4000` via `LLM_GATEWAY_URL`; idempotency, budget gate, clearance-scoped semantic cache, PII scrub via the shared `pii_scrub.py` of T123, cost computation + `billing.deduct` emit, trace + `llm_call_log` write — alias resolution/fallback live in the gateway config of T024b, **not** here) in `backend-python/src/services/llm_gateway.py` (FR-024, FR-029, SC-006, research §21)
 
+### Tests for User Story 4 ⚠️ (write first, must fail)
+
+- [ ] T091a [P] [US4] Reusable **port contract tests** — a pure `PricerContract` suite every `Pricer` impl must pass (deterministic; audit `Attributes` never affect price; empty event is free; fails **closed** on an unknown `RateKey`/`Unit`; credits round **up** so rounding never under-bills; monotonic in quantity) run against `LLMTokenPricer`, plus a `LedgerContract` suite (Testcontainers Redis: debit idempotent on `idem_key`; `Admit` gates without pre-debiting; `Admit` refuses an exhausted balance with the right `DenyCode`; grant idempotent on replayed webhook) in `backend-go/tests/contract/metering_ports_test.go` per [metering-ports.md](./contracts/metering-ports.md) (the conformance gate a future `StorageBytePricer` / swapped `Ledger` is held to)
+
 ### Implementation for User Story 4
 
 - [ ] T092 [US4] Create `workspace_credits` + `credit_ledger` migration (append-only, partitioned, `UNIQUE (idem_key) WHERE idem_key IS NOT NULL`) and `token_usage_daily` in `backend-go/migrations/0012_credits.sql` (FR-019, SC-006)
