@@ -26,6 +26,10 @@
 - **Decision**: Local agents are optional; all core features work with zero agents (SC-008). A registered device gets a scoped, revocable PAT (user + workspace). Default `proxy` sub-mode routes LLM calls through `/llm/proxy` (metered, moderated, audited); `byok` sub-mode bypasses server LLM metering/moderation but still routes MCP tool calls server-side and is disableable per workspace by an admin. All agent results are untrusted; tool arguments are validated against the PAT scope. Long-horizon runs are durable with a hard per-run `credits_cap`.
 - **Rationale**: FR-025–FR-028 + SC-008/SC-009. Optionality keeps the core product independent of agents; the proxy default preserves metering/audit; BYOK is an explicit, admin-gateable trade-off.
 
+## 21. LLM gateway: standalone, swappable service (LiteLLM → Bifrost), not a hand-rolled provider chokepoint
+
+- **PII scrub** wraps the gateway's trace emission — the gateway's own tracer/body-logging is **off**, so the app client wrapper is the sole writer of prompt/response bodies (post-scrub) and the FR-024 scrub + 30-day-retention path cannot be bypassed.
+
 ## Resolved unknowns summary
 
 | Raw prompt/response retention | 30 days, then metadata/aggregates only | Clarification Q5 |

@@ -12,7 +12,7 @@ description: "Task list for AISAT-INTEL MVP (Phase 1) implementation"
 
 ### Python tier chokepoints (LLM gateway, MCP server, access filter)
 
-- [ ] T026 Implement LLM gateway single chokepoint (`LLMRequest`/`LLMResponse`, alias resolution `fast`/`smart`/`embed`/`rerank`, idempotency, budget check, semantic cache, PII scrub via the shared `pii_scrub.py` of T123, trace + `llm_call_log` write) in `backend-python/src/services/llm_gateway.py` (FR-024, FR-029, SC-006)
+- [ ] T026 Implement the LLM **gateway-client** wrapper (`LLMRequest`/`LLMResponse`; forwards to the standalone gateway `:4000` via `LLM_GATEWAY_URL`; idempotency, budget gate, clearance-scoped semantic cache, PII scrub via the shared `pii_scrub.py` of T123, cost computation + `billing.deduct` emit, trace + `llm_call_log` write — alias resolution/fallback live in the gateway config of T024b, **not** here) in `backend-python/src/services/llm_gateway.py` (FR-024, FR-029, SC-006, research §21)
 
 ### Implementation for User Story 4
 
