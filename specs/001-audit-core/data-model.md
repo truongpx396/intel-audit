@@ -16,7 +16,7 @@
 
 ### Agent Policy (P)
 
-- `agent_policies`: `id`, `workspace_id`, `agent_role` (`user`|`admin`|`automation`|`integration`), `allowed_tools[]` (MCP tool names), `token_budget_day` INT, `max_loop_depth` INT (default 20), `hooks_enabled[]` (`audit`|`langfuse`|`garak`), `created_at`
+- `agent_policies`: `id`, `workspace_id`, `agent_role` (`user`|`admin`|`automation`|`integration`), `allowed_tools[]` (MCP tool names), `token_budget_day` INT, `max_loop_depth` INT (default 20), `hooks_enabled[]` (`audit`|`langfuse`|`garak`), **`can_write` BOOL (default false)**, **`write_ops[]`** (Phase 1: only `note_update`), **`write_max_level` INT** (upper bound on an agent write's access level, ≤ owner clearance), `created_at`
 
 ### Audit Record (P + K)
 
@@ -24,9 +24,13 @@
 - `audit_log` (K): generic workspace/member actions — `id`, `workspace_id`, `actor_type`, `actor_id`, `action`, `resource_type`, `resource_id`, `metadata` JSONB, `created_at`. Partitioned by `created_at`.
 - Rules: append-only; AI tool calls and workspace/member actions both audited (FR-023).
 
+### Approval Request (K)
+
+- Rules: RLS restricts rows to `user_id = current_setting('app.user_id')::uuid` within `workspace_id` — a gate is visible/resolvable only by its approver, never another member or across workspaces even at L5 (FR-040, SC-014, parity with SC-012). **Fail-closed**: a `pending` gate never lets its action proceed; a scheduled sweep (`approval.expire.tick`) flips overdue `pending`→`expired`. Resolving is idempotent (first decision wins). The `decision` is **human-authored, never derived from model/tool/document output** (research §5, FR-011). **Zero credits** are spent and **no subject side effect** occurs while `pending` (refuse-before-spend, parity with the `guard` node). Every resolution writes an `audit_log` row (FR-023).
+
 ### Notifications (K)
 
-- Rules: RLS restricts `notifications` to `user_id = current_user` within `workspace_id` — a notification is never visible to any other member or across workspaces, even at L5 (FR-036, SC-012). The notification service applies `notification_preferences` before delivery; an absent preference row uses the category default (in-app on; email on for `credit_warning`, `credit_exhausted`, `invite_received`, `task_halted`, off otherwise) (FR-035). Delivery is idempotent: the persist step writes the `notifications` row **and one `notification_outbox` row per enabled channel in a single transaction**, so a redelivered/retried event is a no-op via the `(user_id, idem_key)` unique constraint (one row, one delivery per channel). The `SET NX notify:applied:{idem_key}` guard is only a fast pre-check that gates the durable write — **never** channel delivery, which is driven off the durable outbox at-least-once (each channel idempotent on `idem_key`) so a crash between persist and send cannot silently drop an email (FR-032, SC-013; [notification-ports.md](./contracts/notification-ports.md), invariants 3–4). High-volume same-category bursts for one recipient are coalesced into a digest/rate-limited summary rather than one push + one email per event (FR-038). The email worker skips any address present in `email_suppressions` and adds rows on provider bounce/complaint webhooks; unsubscribe links flip the relevant `notification_preferences.email` to false (FR-035). Retention: read notifications older than a configured window (default 90 days) are pruned/archived so inbox + unread-count stay performant; the table MAY be range-partitioned by `created_at` for cheap drop (FR-039). Index on `(user_id, read_at, created_at)` for inbox + unread-count queries.
+- Rules: RLS restricts `notifications` to `user_id = current_user` within `workspace_id` — a notification is never visible to any other member or across workspaces, even at L5 (FR-036, SC-012). The notification service applies `notification_preferences` before delivery; an absent preference row uses the category default (in-app on; email on for `credit_warning`, `credit_exhausted`, `invite_received`, `task_halted`, `approval_requested`, off otherwise — `approval_requested` defaults email-on because a paused agent action is actionable and time-sensitive) (FR-035). Delivery is idempotent: the persist step writes the `notifications` row **and one `notification_outbox` row per enabled channel in a single transaction**, so a redelivered/retried event is a no-op via the `(user_id, idem_key)` unique constraint (one row, one delivery per channel). The `SET NX notify:applied:{idem_key}` guard is only a fast pre-check that gates the durable write — **never** channel delivery, which is driven off the durable outbox at-least-once (each channel idempotent on `idem_key`) so a crash between persist and send cannot silently drop an email (FR-032, SC-013; [notification-ports.md](./contracts/notification-ports.md), invariants 3–4). High-volume same-category bursts for one recipient are coalesced into a digest/rate-limited summary rather than one push + one email per event (FR-038). The email worker skips any address present in `email_suppressions` and adds rows on provider bounce/complaint webhooks; unsubscribe links flip the relevant `notification_preferences.email` to false (FR-035). Retention: read notifications older than a configured window (default 90 days) are pruned/archived so inbox + unread-count stay performant; the table MAY be range-partitioned by `created_at` for cheap drop (FR-039). Index on `(user_id, read_at, created_at)` for inbox + unread-count queries.
 
 ### Billing & payments (Phase 2, US4-ext)
 
@@ -54,6 +58,9 @@ erDiagram
     PROJECT ||--o{ METRIC : "measures"
     USER ||--o{ NOTIFICATION : "receives"
     WORKSPACE ||--o{ NOTIFICATION : "scopes"
+    USER ||--o{ APPROVAL_REQUEST : "approves"
+    WORKSPACE ||--o{ APPROVAL_REQUEST : "scopes"
+    AGENT_RUN ||--o| APPROVAL_REQUEST : "pauses on"
 ```
 
 ## Validation & invariants (test targets)
