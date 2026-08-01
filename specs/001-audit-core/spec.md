@@ -21,11 +21,13 @@
 - **Credit Balance & Ledger**: The workspace's current spendable credits plus a durable, append-only record of every credit change.
 - **Agent Policy**: Per-role rules governing allowed tools, daily token budget, and audit hooks.
 - **Audit Record**: An append-only entry capturing AI tool calls and workspace/member actions with a tamper-evident fingerprint.
+- **Sandbox Run Record**: An audit entry for one isolated execution of untrusted content (link crawl, document conversion) — template, feature, exit status, consumed compute, egress volume, timeout flag, and a result fingerprint. It carries no file or content bodies, mirroring the no-body rule of the AI Operation Record. Present because isolated execution is metered and audited like any other AI operation (FR-023, FR-024); see Assumptions — *Isolated execution*.
 - **Notification**: A recipient-scoped, persisted record of a workspace event — category, priority, title, body, resource-reference payload, idempotency key (for de-duplicating redelivered events), and read state — surfaced in the in-app inbox and optionally by email, and subject to a retention policy.
 
 ## Assumptions
 
 - **Retention**: Raw prompt/response bodies are retained for a 30-day window for replay; after 30 days they are purged and long-term storage keeps metadata, hashes, and aggregates, with PII scrubbed before write.
+- **Isolated execution**: Processing untrusted external content — crawling a link (FR-001) and parsing an uploaded file (FR-002) — runs inside a hardware-isolated, egress-restricted sandbox rather than in the shared application process. This is an **implementation strategy for existing requirements, not a requirement of its own**: it carries no FR because it adds no user-visible behavior; it is how FR-001/FR-002 are executed safely and how FR-023/FR-024's audit-and-meter obligations extend to that execution. The choice of sandbox technology is swappable and deployment-specific; environments without hardware virtualization fall back to a weaker container isolation without changing any behavior in this spec. Rationale and the rejected alternatives are recorded in [research.md §24](./research.md); the port is specified in [contracts/sandbox-runtime.md](./contracts/sandbox-runtime.md).
 
 ## Out of Scope (Phase 1)
 

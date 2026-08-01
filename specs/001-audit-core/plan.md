@@ -60,7 +60,9 @@ frontend/                        # React 19 + Vite SPA
 deploy/
 ├── docker-compose.yml           # local dev: postgres, redis, qdrant, nats, casdoor, llm-gateway (LiteLLM :4000), services
 ├── llm-gateway/                 # standalone LLM gateway config (LiteLLM config.yaml; Bifrost-swappable) — aliases, provider keys, LB routing (research §21)
-├── sandbox/                     # standalone sandbox tier: microVM templates (tmpl-crawl/convert/coderun) + self-host/egress config (research §24)
+├── sandbox/                     # standalone sandbox tier: microVM templates/ (tmpl-crawl/convert/coderun) + self-host/egress config (research §24)
+├── eks/                         # AWS target: terraform/ (incl. sandbox.tf tainted KVM/*.metal node group, T024c), helm/, argocd/, local/
+├── do/                          # DigitalOcean target: terraform/, llm-gateway/, monitoring/
 └── Caddyfile                    # reverse proxy, automatic TLS, static SPA serving
 
 Makefile                         # canonical task runner: up/down, build, test, lint, migrate, eval, dev
