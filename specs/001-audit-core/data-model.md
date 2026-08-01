@@ -24,6 +24,11 @@
 - `audit_log` (K): generic workspace/member actions — `id`, `workspace_id`, `actor_type`, `actor_id`, `action`, `resource_type`, `resource_id`, `metadata` JSONB, `created_at`. Partitioned by `created_at`.
 - Rules: append-only; AI tool calls and workspace/member actions both audited (FR-023).
 
+### Sandbox Run Record (P)
+
+- `sandbox_run` (P): `id`, `workspace_id`, `user_id`, `template` (`tmpl-crawl`|`tmpl-convert`|`tmpl-coderun`), `feature` (`ingest.crawl`|`ingest.convert`|`agent.run_script`), `exit_code` INT, `vcpu_seconds` INT, `wall_ms` INT, `egress_bytes` BIGINT, `timed_out` BOOL, `result_hash` (tamper-evident), `trace_id`, `created_at`. Partitioned by `created_at`.
+- Rules: append-only; **exactly one row per sandbox execution** (contract-test obligation). Compute is metered by publishing `billing.deduct.<ws>` with `operation_type ∈ {sandbox.crawl, sandbox.convert, sandbox.run_script}` — the **Go kernel billing worker stays the sole `credit_ledger` writer** (SC-006); the Python sandbox client only writes this audit row and emits the spend event. **No file contents or generated-code bodies are stored** here (only `result_hash`), matching the `llm_call_log` no-body rule (FR-024). A sandbox holds no ambient credentials and no DB/Qdrant access; results re-enter the index only through the normal pipeline / HITL accept gate, so this record cannot widen access (SC-001, research §24).
+
 ### Approval Request (K)
 
 - Rules: RLS restricts rows to `user_id = current_setting('app.user_id')::uuid` within `workspace_id` — a gate is visible/resolvable only by its approver, never another member or across workspaces even at L5 (FR-040, SC-014, parity with SC-012). **Fail-closed**: a `pending` gate never lets its action proceed; a scheduled sweep (`approval.expire.tick`) flips overdue `pending`→`expired`. Resolving is idempotent (first decision wins). The `decision` is **human-authored, never derived from model/tool/document output** (research §5, FR-011). **Zero credits** are spent and **no subject side effect** occurs while `pending` (refuse-before-spend, parity with the `guard` node). Every resolution writes an `audit_log` row (FR-023).
@@ -49,6 +54,7 @@ erDiagram
     WORKSPACE ||--o{ CREDIT_LEDGER : "records"
     WORKSPACE ||--o{ AGENT_POLICY : "defines"
     WORKSPACE ||--o{ AGENT_AUDIT_LOG : "audits"
+    WORKSPACE ||--o{ SANDBOX_RUN : "runs"
     WORKSPACE ||--o{ LLM_CALL_LOG : "meters"
     USER ||--o{ CHAT_SESSION : "starts"
     USER ||--o{ DEVICE : "registers"

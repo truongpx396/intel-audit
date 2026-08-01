@@ -30,6 +30,10 @@
 
 - **PII scrub** wraps the gateway's trace emission — the gateway's own tracer/body-logging is **off**, so the app client wrapper is the sole writer of prompt/response bodies (post-scrub) and the FR-024 scrub + 30-day-retention path cannot be bypassed.
 
+## 24. Sandbox runtime: isolated code/tool execution (self-hosted E2B / Firecracker, Daytona-swappable)
+
+- **Interactions**: the `ingestion.crawl.<ws>` NATS contract is unchanged — only its **consumer** changes from a bespoke Chromium image to a thin orchestrator over the `Sandbox` port (§the crawl role now runs from the `backend-python` image). `web_distill` (the SSRF-guarded fetch, [contracts/mcp-tools.md](./contracts/mcp-tools.md)) executes inside `tmpl-crawl`; the MarkItDown convert step executes inside `tmpl-convert`. Every run writes one `sandbox_run` audit row (the sandbox analogue of `agent_audit_log`, [data-model.md](./data-model.md)). The Phase-2 code-gen tool (`run_script`/`transform_files`) is an MCP Category-D action reusing the `human_gate` (fail-closed, no-spend-while-paused) — see [draft-plan.md — Decision 7](../draft-plan.md#decision-7--code-gen--file-manipulation-tools-run-in-a-sandbox-never-on-a-pod).
+
 ## Resolved unknowns summary
 
 | Raw prompt/response retention | 30 days, then metadata/aggregates only | Clarification Q5 |
