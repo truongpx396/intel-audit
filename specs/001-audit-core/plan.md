@@ -6,6 +6,36 @@
 
 - Sandbox runtime: a standalone tier behind a thin `Sandbox` port — the single chokepoint for isolated code/tool exec (crawl4ai, MarkItDown convert, Phase-2 code-gen); the only holder of the template registry + egress policy. **Phase-1 boundary is a hardened container, no microVM, $0 incremental — the kind is per-environment**: `SANDBOX_KIND=service` on the first DO-droplet deploy (long-lived pools, **no runtime socket anywhere** — per-job on compose would require one, which is host-equivalent privilege), `docker` for local macOS dev, and `k8s_pod` on k3s/EKS (per-job pods via RBAC ServiceAccount, no socket, full workspace-recycle guarantee). **Lifecycle follows the deployment's privilege economics, not the workload.** A second, orthogonal axis `SANDBOX_RUNTIME` (`runc`|`runsc`, per-template) selects the isolation runtime — gVisor is a one-flag upgrade on the Linux droplet, free, and is what `tmpl-convert` ratchets to. E2B/Firecracker microVMs remain the same contract behind the same port but are **not required**: `tmpl-coderun` lands on gVisor + `max_runs=1`, so no Phase-1 or Phase-2 workload needs `/dev/kvm` (research §24)
 
+### Documentation (this feature)
+
+```text
+specs/001-contextengine-mvp/
+├── plan.md              # This file (/speckit.plan command output)
+├── spec.md              # Feature specification (with Clarifications)
+├── research.md          # Phase 0 output (/speckit.plan command)
+├── data-model.md        # Phase 1 output (/speckit.plan command)
+├── quickstart.md        # Phase 1 output (/speckit.plan command)
+├── contracts/           # Phase 1 output (/speckit.plan command)
+│   ├── README.md             # Contract index + conventions
+│   ├── bff-rest.md           # Go BFF public REST + SSE endpoints
+│   ├── sse-events.md         # SSE event taxonomy (BFF ↔ frontend)
+│   ├── auth-flow.md          # Casdoor OIDC login + session/PAT auth flow
+│   ├── nats-subjects.md      # NATS subject schema (ingestion/query/billing)
+│   ├── mcp-tools.md          # 10 MCP tools across 4 categories
+│   ├── agent-graph.md        # LangGraph node/edge contract (durable + inline forms)
+│   ├── agent-runtime.md      # Self-contained agent runtime — AgentManifest + DomainPlugin, swap matrix, deployment profiles (A full / B single-container)
+│   ├── llm-gateway.md        # LLM gateway service (LiteLLM/Bifrost-swappable) + per-runtime client
+│   ├── sandbox-runtime.md    # Sandbox tier (hardened pod default; gVisor/microVM-swappable) + Sandbox port
+│   ├── authorizer-ports.md   # Go Authorizer port (SingleAxisPolicy + SQL/Qdrant lowerers)
+│   ├── approval-ports.md     # Human-in-the-loop gate (HumanGate/ApprovalStore) port
+│   ├── metering-ports.md     # Credits/metering port (billing.deduct ledger writer)
+│   ├── notification-ports.md # Notification fan-out ports (ChannelRegistry/topics)
+│   └── audit-ports.md        # Append-only tamper-evident audit ports (Recorder/Sink/HashChain)
+├── checklists/
+│   └── requirements.md  # Spec quality checklist
+└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
+```
+
 ### Source Code (repository root)
 
 ```text
