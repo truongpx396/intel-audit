@@ -16,7 +16,7 @@
 
 ### Agent Policy (P)
 
-- `agent_policies`: `id`, `workspace_id`, `agent_role` (`user`|`admin`|`automation`|`integration`), `allowed_tools[]` (MCP tool names), `token_budget_day` INT, `max_loop_depth` INT (default 20), `hooks_enabled[]` (`audit`|`langfuse`|`garak`), **`can_write` BOOL (default false)**, **`write_ops[]`** (Phase 1: only `note_update`), **`write_max_level` INT** (upper bound on an agent write's access level, ≤ owner clearance), `created_at`
+- `agent_policies`: `id`, `workspace_id`, `agent_role` (`user`|`admin`|`automation`|`integration`), `allowed_tools[]` (MCP tool names), `token_budget_day` INT, `max_loop_depth` INT (default 20), **`run_deadline_s` INT (default 1800)**, **`max_steps` INT (default 60)**, `hooks_enabled[]` (`audit`|`langfuse`|`garak`), **`can_write` BOOL (default false)**, **`write_ops[]`** (Phase 1: only `note_update`), **`write_max_level` INT** (upper bound on an agent write's access level, ≤ owner clearance), `created_at`
 
 ### Audit Record (P + K)
 
