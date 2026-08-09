@@ -14,10 +14,6 @@
 
 - No raw message bodies (FR-024). Drives `llm_cost_daily` materialized view (admin dashboard, FR-022).
 
-### Agent Policy (P)
-
-- `agent_policies`: `id`, `workspace_id`, `agent_role` (`user`|`admin`|`automation`|`integration`), `allowed_tools[]` (MCP tool names), `token_budget_day` INT, `max_loop_depth` INT (default 20), **`run_deadline_s` INT (default 1800)**, **`max_steps` INT (default 60)**, `hooks_enabled[]` (`audit`|`langfuse`|`garak`), **`can_write` BOOL (default false)**, **`write_ops[]`** (Phase 1: only `note_update`), **`write_max_level` INT** (upper bound on an agent write's access level, ≤ owner clearance), `created_at`
-
 ### Audit Record (P + K)
 
 - `agent_audit_log` (P): `id`, `workspace_id`, `user_id`, `agent_role`, `tool_called`, `token_cost`, `result_hash` (tamper-evident result fingerprint), `trace_id`, `created_at`, **`seq` BIGINT + `prev_hash` + `entry_hash` (per-tenant tamper-evident chain link)**. Partitioned by `created_at`.
