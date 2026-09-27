@@ -50,7 +50,7 @@ description: "Task list for AISAT-INTEL MVP (Phase 1) implementation"
 
 ### Implementation for User Story 4
 
-- [ ] T092 [US4] Create `workspace_credits` + `credit_ledger` migration (append-only, partitioned, `UNIQUE (idem_key) WHERE idem_key IS NOT NULL`) and `token_usage_daily` in `backend-go/migrations/0012_credits.sql` (FR-019, SC-006)
+- [ ] T092 [US4] Create `workspace_credits` + `credit_ledger` (append-only, partitioned by `created_at`, **signed** `credits_delta`) + **`credit_idem` PK `(realm, idem_key)`** and `token_usage_daily` in `backend-go/migrations/0012_credits.sql` (FR-019, SC-006). The idempotency guard MUST be its own non-partitioned table — Postgres rejects a global `UNIQUE (idem_key)` on a table partitioned by `created_at`, so the two cannot live together; mirror [intel-payment/migrations/0001](https://github.com/truongpx396/intel-payment/blob/main/migrations/0001_metering_core.sql), which is verified against PostgreSQL 16
 
 ### Implementation for User Story 6
 

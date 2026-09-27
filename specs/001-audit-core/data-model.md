@@ -8,7 +8,7 @@
 
 ### Credit Balance & Ledger (P)
 
-- Rules: append-only; Redis balance = `SUM(ledger.delta) + grants`; rehydrate-on-cold-start + hourly reconciliation (research §3). The **Go kernel billing worker is the sole `credit_ledger` writer** (`backend-go/kernel/billing/`); Python spend producers only publish `billing.deduct` events and never write the ledger.
+- Rules: append-only; Redis balance = `SUM(credits_delta)`; rehydrate-on-cold-start + hourly reconciliation (research §3). The **Go kernel billing worker is the sole `credit_ledger` writer** (`backend-go/kernel/billing/`); Python spend producers only publish `billing.deduct` events and never write the ledger. The engine's schema is owned upstream ([intel-payment](https://github.com/truongpx396/intel-payment/blob/main/migrations/0001_metering_core.sql), applied against PostgreSQL 16); these rows are this product's binding of it, keyed on `workspace_id` as the scope.
 
 ### AI Operation Record / LLM Call Log (P)
 
