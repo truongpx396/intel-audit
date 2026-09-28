@@ -1,8 +1,34 @@
-# Contract: Audit Trail & Tamper-Evident Recording (reusable ports)
+# Contract: Audit Trail & Tamper-Evident Recording
 
-**Plan**: [../plan.md](../plan.md) | **Status**: Design addition — the reusability seam for the audit backbone (FR-023, FR-024). It factors the existing append-only, tamper-evident, partition-retained audit machinery into a small set of ports so the *same* engine records for any domain, any actor, and any durable sink without a schema change. **Changes no Phase 1 behavior** — the same rows land in `audit_log` / `agent_audit_log`; this only names the write/query seam that today is a set of inline `INSERT`s, the same treatment [metering-ports.md](./metering-ports.md), [notification-ports.md](./notification-ports.md), and [approval-ports.md](./approval-ports.md) gave their backbones.
+**Spec**: [../spec.md](../spec.md) · **Plan**: [../plan.md](../plan.md) ·
+**Decisions**: [../design-decisions.md](../design-decisions.md) · **Status**: normative.
 
-The Phase 1 audit machinery is already correct on its *operational* axes (append-only, tamper-evident `result_hash`, tenant-scoped, time-partitioned retention), but it is packaged as **two divergent tables written by hand-rolled `INSERT`s** welded to four of *this* app's assumptions. This contract names the seam that removes that welding. Ports are given in Go (the kernel language); ContextEngine's two audit streams (generic member actions + AI tool calls) are presented at the end as **two bindings of one `Recorder`**, not as two engines.
+This is the core contract — domain types, every port, the invariants, the durability knob, the
+contract-test suites and the module layout. It was written as a reusability seam *inside* the product
+this engine was extracted from, and carried here with its git history; see
+[PROVENANCE.md](../../../PROVENANCE.md) for what changed in the lift and how the originating
+`AR-001`/`AR-016` map onto this repository's `AR-0NN`/`AS-0NN`.
+
+> ### ⚠️ Four decisions supersede parts of what follows
+> This document predates them, and they were found by *running* its schema rather than reading it.
+> Where this contract and [design-decisions.md](../design-decisions.md) disagree, **the decisions
+> win**:
+>
+> | | Superseded by |
+> |---|---|
+> | Invariant 4's durable `UNIQUE (tenant, idem_key)` on a partitioned table — **cannot be created** | [D2](../design-decisions.md#d2) — a separate `audit_idem` table |
+> | Invariant 6 (a seq gap is tampering) vs invariant 9 (retention retires partitions) — **directly contradictory**, so retention makes a healthy log report tampering | [D3](../design-decisions.md#d3) — retirement records an anchor first |
+> | The per-tenant chain head as "authoritative Redis state" — a cache cannot own a sequence | [D4](../design-decisions.md#d4) — the head is a durable table |
+> | Invariant 1's append-only, guaranteed by the *absence* of a method | [D15](../design-decisions.md#d15) — the database rejects mutation |
+>
+> The ports below are otherwise unchanged: they were well-factored, which is why this extraction was
+> a repackaging rather than a rewrite.
+
+The originating machinery was already correct on its operational axes — append-only in practice,
+tenant-scoped, time-partitioned — but packaged as **two divergent tables written by hand-rolled
+`INSERT`s** welded to four of that product's assumptions. This contract names the seam that removes
+the welding. Ports are given in Go; that product's two audit streams appear at the end as **two
+bindings of one `Recorder`**, not as two engines.
 
 ---
 
@@ -17,7 +43,7 @@ The Phase 1 audit machinery is already correct on its *operational* axes (append
 
 The rule: **the audit kernel is generic; only the `Sink` set, the `Action`/`Actor` taxonomy, and the `Tenant` binding are product-specific.** Everything that matters for an audit trail today (append-only, tamper-evident hashing, tenant-scoping, partitioned retention, no-body redaction) is preserved verbatim — it just stops assuming "workspace," a fixed two-table split, and Postgres-only.
 
-> **This is a packaging refactor, not a behavior change.** FR-023 still records the same member actions and AI tool calls; FR-024's no-body rule still holds (only `result_hash`, never payloads). The two physical tables MAY remain as one `PostgresSink`'s partitions — what unifies is the *write path* (`Recorder.Record`) and the *query path* (`AuditQuery`), so a new audited surface is a `Record` call with a new `Actor.Kind`/`Action`, never a migration.
+> **This is a packaging refactor, not a behavior change.** AR-001 still records the same member actions and AI tool calls; AR-016's no-body rule still holds (only `result_hash`, never payloads). The two physical tables MAY remain as one `PostgresSink`'s partitions — what unifies is the *write path* (`Recorder.Record`) and the *query path* (`AuditQuery`), so a new audited surface is a `Record` call with a new `Actor.Kind`/`Action`, never a migration.
 
 ---
 
@@ -30,7 +56,7 @@ PRODUCERS (auth · billing · invite · agent · admin · sandbox · approval) �
    ▼
 ┌── Recorder (orchestration) ───────────────────────────────────────────────────┐
 │   HashChain.Seal(entry, prevHash) → entry.Hash   (tamper-evidence, per scope)  │
-│   redact(entry)  → strip bodies; keep refs + ResultHash only (FR-024)   PURE   │
+│   redact(entry)  → strip bodies; keep refs + ResultHash only (AR-016)   PURE   │
 │   Sink.Append(sealed)  → durable, idempotent on (tenant, idem_key)             │
 └───────────────────────────────────────────────┬───────────────────────────────┘
         sync (security events) OR buffered (high-volume) — a knob, invariant 3    │
@@ -98,7 +124,7 @@ type Severity string // "info" | "notice" | "security" | "critical"
 
 // Entry is ONE immutable, append-only audit record — the unit the engine seals + dedupes on.
 // IdemKey is REQUIRED: it is the retry/dedup identity that makes Record exactly-once so a
-// producer's at-least-once bus cannot double-log the same event (FR-023).
+// producer's at-least-once bus cannot double-log the same event (AR-001).
 type Entry struct {
 	Tenant     Tenant
 	Actor      Actor
@@ -106,7 +132,7 @@ type Entry struct {
 	Subject    Subject
 	Severity   Severity
 	Attributes map[string]string // host detail: token_cost, trace_id, old→new value, provider — see the no-body invariant
-	ResultHash string            // OPTIONAL tamper-evident fingerprint of a result/body that is NOT stored (parity with agent_audit_log.result_hash / llm_call_log no-body, FR-024)
+	ResultHash string            // OPTIONAL tamper-evident fingerprint of a result/body that is NOT stored (parity with agent_audit_log.result_hash / llm_call_log no-body, AR-016)
 	IdemKey    string            // REQUIRED — derived from the originating resource + event
 	TraceID    string            // correlation id (OTel), for cross-system stitching
 	OccurredAt time.Time
@@ -135,7 +161,7 @@ type Receipt struct {
 ## Port: `Sink` — the pluggable durable target (the load-bearing seam)
 
 ```go
-// Sink is ONE durable append target. PostgresSink is the Phase 1 implementation; a Kafka
+// Sink is ONE durable append target. PostgresSink is the reference implementation; a Kafka
 // topic, an append-only S3 object log, or a SIEM forwarder is added by REGISTERING another
 // Sink — never by editing the recorder. This is the audit analogue of metering's Pricer and
 // notification's Channel: the one place a new deployment plugs in its own backend.
@@ -154,7 +180,7 @@ type Sink interface {
 
 	// Prune enforces retention: it DROPs whole time partitions older than the window
 	// (never a row-level DELETE, which would break the hash chain's Seq contiguity within a
-	// retained window). Returns the count reclaimed. (FR-039-style bounded growth.)
+	// retained window). Returns the count reclaimed. (AR-011-style bounded growth.)
 	Prune(ctx context.Context, olderThan time.Duration) (pruned int, err error)
 }
 
@@ -255,7 +281,7 @@ type Cursor string
 2. **Tenant-scoping at the data layer.** Every read is constrained to its `Tenant` by an RLS policy (`workspace_id = current_setting('app.workspace_id')`); a trail is never visible across tenants regardless of clearance/role. Scoping lives in the sink/store, not application code (parity with the notification recipient-scoping invariant).
 3. **Durability posture is explicit, and security events are synchronous.** `Record` picks an `AuditDurability` (below). High-volume, low-stakes entries (per-tool-call telemetry) MAY buffer; **any `Severity ∈ {security, critical}` MUST be written synchronously before the producing action is acknowledged** — a dropped security event is a compliance failure (OWASP A09 / logging L1). The knob never applies to security-relevant entries.
 4. **Idempotent on IdemKey.** Every `Record` carries an `IdemKey`; the durable `UNIQUE(tenant, idem_key)` collapses a producer's at-least-once redelivery to exactly one row (and one consumed `Seq`). `Receipt.Applied=false` reports a replay.
-5. **No bodies — refs + hashes only.** An `Entry` stores deep-link refs and a `ResultHash`, never file contents, generated code, prompts, responses, or secrets (parity with the `agent_audit_log` / `llm_call_log` no-body rule, FR-024). Redaction is a **pure** step in `Record`, applied before sealing, so the hash covers the redacted form. `Attributes` is for audit detail (trace_id, token_cost, old→new value), never a payload dump.
+5. **No bodies — refs + hashes only.** An `Entry` stores deep-link refs and a `ResultHash`, never file contents, generated code, prompts, responses, or secrets (parity with the `agent_audit_log` / `llm_call_log` no-body rule, AR-016). Redaction is a **pure** step in `Record`, applied before sealing, so the hash covers the redacted form. `Attributes` is for audit detail (trace_id, token_cost, old→new value), never a payload dump.
 6. **Tamper-evident, not just append-only.** Each entry links to the previous via `PrevHash` + a monotonic per-tenant `Seq`; `HashChain.Verify` detects an edited hash, a missing `Seq`, or a reorder. This upgrades today's standalone per-row `result_hash` (which fingerprints a *result body*, not the log) into a verifiable *history*. It is the one part of this contract that is **additive to the schema, not pure repackaging**: each audit partition gains `seq`/`prev_hash`/`entry_hash` columns and a per-tenant Redis chain head (`audit:head:{tag}`) — see [data-model.md](../data-model.md) "Audit Record". What is *stored* still adds no bodies (invariant 5): the new columns are chain metadata, not payloads; `result_hash` remains the no-body result fingerprint alongside them.
 7. **Sealing is deterministic + concurrency-safe.** `HashChain.Seal` is pure over `(prevHash, canonical(entry), seq)` — no clock, no I/O in the hash — and assigns contiguous `Seq`s under concurrency (atomic head advance). Determinism is what makes `Verify` (and a dispute replay) reproducible.
 8. **Pluggable sink, never an inline INSERT.** The recorder writes through the `SinkRegistry`; a second/replacement backend (SIEM, Kafka, S3) is a `Register`, never an edit to a producer. Fan-out to multiple sinks is all-or-nothing per entry (a partial write re-drives on the shared `IdemKey`).
@@ -277,11 +303,11 @@ One config selects the durability/latency trade for `Record`, without changing a
 
 ---
 
-## Reference wiring: ContextEngine audit as TWO bindings of ONE Recorder
+## Reference wiring: the originating product audit as TWO bindings of ONE Recorder
 
-The Phase 1 system is these ports bound to *this* app — nothing in the kernel knows there were ever "two tables":
+The originating product is these ports bound to *one* app — nothing in the kernel knows there were ever "two tables":
 
-| Generic port / type | ContextEngine (Phase 1) binding |
+| Generic port / type | The originating product's binding |
 |---|---|
 | `Tenant` | `{Kind: "workspace", ID: workspace_id}` → Phase 2 `{Kind: "organization", …}` — a binding change, no kernel edit |
 | `Actor` (member action) | `{Kind: "user", ID: user_id, Role: member_role}` → today's `audit_log.actor_type/actor_id` |
@@ -294,7 +320,7 @@ The Phase 1 system is these ports bound to *this* app — nothing in the kernel 
 | `Sink` | `PostgresSink` over the partitioned `audit_log` + `agent_audit_log` tables (kept as its physical partitions) |
 | `Recorder` producers | the auth/invite/admin/policy/approval writers (`security` sync) + the MCP policy wrapper's per-tool-call row (`info` buffered) |
 
-Swapping ContextEngine for, say, a fintech ledger app that must forward to Splunk = register a `SplunkSink` alongside `PostgresSink`, set `Tenant.Kind="account"`, define its `Action`s. The sealing, redaction, idempotency, tenant-scoping, and retention code are untouched. Re-anchoring workspace→organization is one `Tenant` binding change (the same move metering and notify already documented).
+Swapping the originating product for, say, a fintech ledger app that must forward to Splunk = register a `SplunkSink` alongside `PostgresSink`, set `Tenant.Kind="account"`, define its `Action`s. The sealing, redaction, idempotency, tenant-scoping, and retention code are untouched. Re-anchoring workspace→organization is one `Tenant` binding change (the same move metering and notify already documented).
 
 ---
 
@@ -378,7 +404,7 @@ func SinkContract(t *testing.T, newSink func(t *testing.T) audit.Sink) {
 
 **Yes — the audit engine can run as its own runtime service, and the ports are what make it a config+wiring change rather than a rewrite** (the same library↔service move metering, notification, and the LLM gateway make). Two shapes, one set of interfaces:
 
-1. **Embedded library (Phase 1 default).** Callers import `kernel/audit`; producers call `Record` in-process (a fast seal + append). The `buffered` drainer runs in the `cmd/worker` role.
+1. **Embedded library (the default).** Callers import this module; producers call `Record` in-process (a fast seal + append). The `buffered` drainer runs in the `cmd/worker` role.
 2. **Standalone audit service.** Wrap the *same* ports behind a thin gRPC facade (`AuditService`), hand producers a client stub, and the service owns the store + hash chain + sink registry. Only the `Recorder` binding changes (in-process impl → client stub); producer logic does not. This is the natural shape once a *second* product must share a compliance trail or a central SIEM feed.
 
 What makes it **not free** (decide before extracting):
@@ -391,11 +417,19 @@ What makes it **not free** (decide before extracting):
 
 ---
 
-## Alignment note (tasks)
+## Alignment note — resolved
 
-This contract has **no implementation task yet** — Phase 1 tasks write audit rows inline (the generic `audit_log` writer and the `agent_audit_log` policy-repo writer) rather than through a `Recorder`/`Sink` port. Bringing tasks into alignment with this contract means:
+The originating version of this document closed with an admission:
 
-- a kernel `audit` port task (`backend-go/kernel/audit/` — `Recorder`/`Sink`/`HashChain`/`AuditQuery` + `Tenant`/`Actor`/`Action`/`Subject`/`Entry`/`Sealed`; `depguard`: `kernel/audit/**` may not import `internal/**`, the same rule as `kernel/metering`/`kernel/notify`/`kernel/approval`), and
-- an audit **contract-test** task running `HashChainContract` + `SinkContract` (+ the append-only / tenant-scope / no-body invariants),
+> *"audit is the one backbone in this system that is production-correct but **not** yet behind its
+> reusable seam — this document is the seam; the tasks are the follow-up."*
 
-with the existing inline writers refactored to call `Recorder.Record`. Until then, audit is the one backbone in this system that is production-correct but **not** yet behind its reusable seam — this document is the seam; the tasks are the follow-up.
+That contract had no implementation task: rows were written by inline INSERTs, not through a
+`Recorder`. **This repository is that follow-up.** The seam is now the product, the build order is
+[tasks.md](../tasks.md), and the boundary is a CI gate rather than an intention — nothing in this
+module may import a host, and the module builds and tests with no host present.
+
+Four things changed on the way, all found by applying the schema rather than reading it: the
+idempotency constraint that could not be created, the retention/verification contradiction, the
+chain head that lived in a cache, and append-only that only the application respected. They are
+[D2, D3, D4 and D15](../design-decisions.md).
