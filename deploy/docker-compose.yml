@@ -1,0 +1,67 @@
+# Local service-mode stack. `docker compose -f deploy/docker-compose.yml up`
+#
+# PostgreSQL is the ONLY required infrastructure. Redis is included but optional:
+# it caches the per-tenant chain head and nothing else, so removing it costs one
+# query per append and breaks nothing. The originating design made Redis
+# authoritative for that head; see design-decisions.md D4 for why it is not.
+
+name: intel-audit
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: notify
+    ports: [ "5432:5432" ]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Applied in filename order on first boot of an empty volume.
+      - ../migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d notify" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    # Eviction is safe here: the only thing cached is the chain head, and a miss
+    # falls through to Postgres, which owns it. This is the whole reason Redis is
+    # optional rather than required.
+    command: [ "redis-server", "--maxmemory-policy", "noeviction", "--appendonly", "yes" ]
+    ports: [ "6379:6379" ]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  auditd:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    environment:
+      AUDIT_REALM: local
+      AUDIT_PG_DSN: postgres://postgres:postgres@postgres:5432/audit?sslmode=disable
+      AUDIT_REDIS_URL: redis://redis:6379/0
+      AUDIT_DELIVERY: outbox
+      AUDIT_SHARDS: "16"
+    ports:
+      - "8080:8080"   # REST, recipient-facing
+      - "9090:9090"   # gRPC, producer-facing -- internal network in production
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+
+  # auditd runs the dispatcher in-process by default. Split it out when delivery
+  # volume needs to scale independently of the API tier.
+  # dispatcher:
+  #   build: { context: .., dockerfile: deploy/Dockerfile }
+  #   command: [ "--role=dispatcher" ]
+
+volumes:
+  pgdata:
+  redisdata:
